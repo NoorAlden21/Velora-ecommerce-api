@@ -21,7 +21,8 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         $this->call([
-            RolesAndAdminSeeder::class
+            RolesAndAdminSeeder::class,
+            AudienceSeeder::class
         ]);
     }
 }

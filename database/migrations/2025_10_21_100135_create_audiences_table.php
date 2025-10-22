@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('audiences', function (Blueprint $table) {
             $table->id();
+            $table->string('name');           // "Men", "Women", "Kids", ...
+            $table->string('slug')->unique(); // "men", "women", "kids"
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

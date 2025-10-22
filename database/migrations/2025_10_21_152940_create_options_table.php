@@ -11,8 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('categories', function (Blueprint $table) {
+        Schema::create('options', function (Blueprint $table) {
             $table->id();
+            $table->string('name');           // Color, Size ...
+            $table->string('slug')->unique(); // color, size ...
+            $table->string('type')->default('text'); // text|color|size
+            $table->boolean('is_active')->default(true);
+            $table->unsignedInteger('position')->default(0);
             $table->timestamps();
         });
     }
@@ -22,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('categories');
+        Schema::dropIfExists('options');
     }
 };
