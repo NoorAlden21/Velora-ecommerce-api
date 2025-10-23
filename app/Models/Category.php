@@ -74,4 +74,9 @@ class Category extends Model
         }
         return $trail;
     }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 }

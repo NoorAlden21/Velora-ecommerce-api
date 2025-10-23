@@ -58,4 +58,9 @@ class Product extends Model
             ->withTimestamps()
             ->withPivot('attribute_id');
     }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 }
