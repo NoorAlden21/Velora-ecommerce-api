@@ -42,9 +42,22 @@ class Product extends Model
         return $this->belongsToMany(Option::class, 'product_options')->withTimestamps();
     }
 
+    // Selected option values for this product (drives generation & UI)
+    public function selectedOptionValues()
+    {
+        return $this->belongsToMany(OptionValue::class, 'product_option_values')
+            ->withPivot('option_id')
+            ->withTimestamps();
+    }
+
     public function variants()
     {
         return $this->hasMany(ProductVariant::class);
+    }
+
+    public function variantValues()
+    {
+        return $this->hasManyThrough(ProductVariantValue::class, ProductVariant::class);
     }
 
     public function colorImages() // لو اعتبرت اللون OptionValue
@@ -52,13 +65,17 @@ class Product extends Model
         return $this->hasMany(ProductOptionValueImage::class);
     }
 
+
+
+    // Attributes
     public function attributeValues()
     {
         return $this->belongsToMany(AttributeValue::class, 'product_attribute_values')
-            ->withTimestamps()
-            ->withPivot('attribute_id');
+            ->withPivot('attribute_id')
+            ->withTimestamps();
     }
 
+    // Slug binding
     public function getRouteKeyName(): string
     {
         return 'slug';
