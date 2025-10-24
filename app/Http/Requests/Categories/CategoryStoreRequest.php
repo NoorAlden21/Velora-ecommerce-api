@@ -15,7 +15,7 @@ class CategoryStoreRequest extends FormRequest
     {
         return [
             'name'      => ['required', 'string', 'max:255'],
-            'slug'      => ['required', 'string', 'max:255', 'unique:categories,slug'],
+            'slug'      => ['nullable', 'string', 'max:120', 'alpha_dash', 'unique:categories,slug'],
             'parent_id' => ['nullable', 'integer', 'exists:categories,id'],
             'position'  => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],

@@ -59,14 +59,11 @@ class CategoryService
     public function update(Category $category, array $data): Category
     {
         return DB::transaction(function () use ($category, $data) {
-            $slugChanged   = array_key_exists('slug', $data) && $data['slug'] !== $category->slug;
+            unset($data['slug']);
+
             $parentChanged = array_key_exists('parent_id', $data) && $data['parent_id'] !== $category->parent_id;
-
-            if ($slugChanged || $parentChanged) {
-                $newSlug   = $data['slug'] ?? $category->slug;
-                $newParent = $data['parent_id'] ?? $category->parent_id;
-
-                [$path, $depth] = $this->computePathAndDepth($newSlug, $newParent);
+            if ($parentChanged) {
+                [$path, $depth] = $this->computePathAndDepth($category->slug, $data['parent_id']); // slug unchanged
                 $data['path']  = $path;
                 $data['depth'] = $depth;
             }
