@@ -23,7 +23,7 @@ class ProductStoreRequest extends FormRequest
     {
         return [
             'name'        => ['required', 'string', 'max:255'],
-            'slug'        => ['required', 'string', 'max:255', 'unique:products,slug'],
+            'slug'        => ['nullable', 'string', 'max:255', 'alpha_dash', 'unique:products,slug'],
             'sku'         => ['nullable', 'string', 'max:100', 'unique:products,sku'],
             'price_cents' => ['required', 'integer', 'min:0'],
             'currency'    => ['required', 'string', 'size:3'],

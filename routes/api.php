@@ -18,6 +18,10 @@ use App\Http\Controllers\Api\Admin\ProductVariantsController;
 use App\Http\Controllers\Api\Admin\ProductColorImagesController;
 use App\Http\Controllers\Api\Admin\ProductAttributesController;
 
+use Illuminate\Http\Request;
+use App\Models\Product;
+use App\Models\Redirect;
+
 /*
 |--------------------------------------------------------------------------
 | Auth
@@ -51,8 +55,40 @@ Route::middleware('auth:sanctum')->group(function () {
 // Products (public)
 Route::prefix('products')->group(function () {
     Route::get('', [ProductController::class, 'index']);
-    Route::get('{product}', [ProductPublicController::class, 'show']);
-    Route::get('{product}/resolve-variant', [ProductVariantPublicController::class, 'resolve']); // map selections -> variant
+    Route::get('{product}', [ProductPublicController::class, 'show'])
+        ->name('api.products.show')
+        ->missing(function (Request $request) {
+            $slug = $request->route('product');
+            $hit = Redirect::where('model_type', Product::class)
+                ->where('from_slug', $slug)
+                ->latest('id')
+                ->first();
+
+            if ($hit) {
+                return redirect()->route('api.products.show', ['product' => $hit->to_slug], 301);
+            }
+
+            abort(404);
+        });
+
+    Route::get('{product}/resolve-variant', [ProductVariantPublicController::class, 'resolve'])
+        ->name('api.products.resolve')
+        ->missing(function (Request $request) {
+            $slug = $request->route('product');
+            $hit = Redirect::where('model_type', Product::class)
+                ->where('from_slug', $slug)
+                ->latest('id')
+                ->first();
+
+            if ($hit) {
+                // save the queries
+                $qs = $request->getQueryString();
+                $url = route('api.products.resolve', ['product' => $hit->to_slug]);
+                return redirect($qs ? "{$url}?{$qs}" : $url, 301);
+            }
+
+            abort(404);
+        });
 });
 
 // Categories (public)
