@@ -27,6 +27,7 @@ class ProductStoreRequest extends FormRequest
             'sku'         => ['nullable', 'string', 'max:100', 'unique:products,sku'],
             'price_cents' => ['required', 'integer', 'min:0'],
             'currency'    => ['required', 'string', 'size:3'],
+            'brand_id'    => ['nullable', 'integer', 'exists:brands,id'],
             'is_active'   => ['boolean'],
             'published_at' => ['nullable', 'date'],
             'primary_category_id' => ['nullable', 'integer', 'exists:categories,id'],

@@ -9,6 +9,7 @@ class Product extends Model
     protected $fillable = [
         'name', 'slug', 'sku', 'is_active', 'published_at',
         'price_cents', 'currency',
+        'brand_id',
         'primary_category_id',
         'description',
         'meta_title', 'meta_description',
@@ -18,6 +19,11 @@ class Product extends Model
         'is_active' => 'boolean',
         'published_at' => 'datetime',
     ];
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
+    }
 
     public function primaryCategory()
     {

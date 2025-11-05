@@ -51,6 +51,21 @@ final class CategoryController extends Controller
         }
     }
 
+    public function indexPublic(): JsonResponse
+    {
+        try {
+            $cats = Category::with(['children' => fn ($q) => $q->orderBy('position')->orderBy('name')])
+                ->whereNull('parent_id')
+                ->orderBy('position')->orderBy('name')
+                ->get();
+
+            return CategoryResource::collection($cats)->response();
+        } catch (Throwable $e) {
+            report($e);
+            return response()->json(['message' => 'Failed to list categories'], 500);
+        }
+    }
+
     public function store(CategoryStoreRequest $request): JsonResponse
     {
         try {

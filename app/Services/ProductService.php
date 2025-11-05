@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Redirect;
@@ -20,6 +21,7 @@ class ProductService
         'published_at',
         'price_cents',
         'currency',
+        'brand_id',
         'primary_category_id',
         'description',
         'meta_title',
@@ -30,7 +32,7 @@ class ProductService
     {
         /** @var Builder $q */
         $q = Product::query()
-            ->with(['primaryCategory', 'categories', 'audiences'])
+            ->with(['brand', 'primaryCategory', 'categories', 'audiences'])
             ->where('is_active', true);
 
         // Text search
@@ -41,6 +43,14 @@ class ProductService
                     ->orWhere('slug', 'like', "%{$term}%")
                     ->orWhere('description', 'like', "%{$term}%");
             });
+        }
+
+        // Brand
+        if (empty($params['brand_id']) && !empty($params['brand_slug'])) {
+            $params['brand_id'] = Brand::where('slug', $params['brand_slug'])->value('id');
+        }
+        if (!empty($params['brand_id'])) {
+            $q->where('brand_id', (int) $params['brand_id']);
         }
 
         // Primary category
@@ -159,7 +169,7 @@ class ProductService
                 $product->audiences()->sync($audienceIds);
             }
 
-            return $product->load(['primaryCategory', 'categories', 'audiences']);
+            return $product->load(['brand', 'primaryCategory', 'categories', 'audiences']);
         });
     }
 
@@ -205,7 +215,7 @@ class ProductService
                 $product->audiences()->sync($audienceIds ?? []);
             }
 
-            return $product->load(['primaryCategory', 'categories', 'audiences']);
+            return $product->load(['brand', 'primaryCategory', 'categories', 'audiences']);
         });
     }
 

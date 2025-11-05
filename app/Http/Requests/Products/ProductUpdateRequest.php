@@ -31,6 +31,7 @@ class ProductUpdateRequest extends FormRequest
             'sku'         => ['nullable', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($productId, 'id')],
             'price_cents' => ['sometimes', 'integer', 'min:0'],
             'currency'    => ['sometimes', 'string', 'size:3'],
+            'brand_id'    => ['sometimes', 'nullable', 'integer', 'exists:brands,id'],
             'is_active'   => ['sometimes', 'boolean'],
             'published_at' => ['nullable', 'date'],
             'primary_category_id' => ['nullable', 'integer', 'exists:categories,id'],

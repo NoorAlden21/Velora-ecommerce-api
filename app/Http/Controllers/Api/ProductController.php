@@ -44,7 +44,7 @@ class ProductController extends Controller
     public function show(Product $product): JsonResponse
     {
         try {
-            $product->load(['primaryCategory', 'categories', 'audiences']);
+            $product->load(['brand', 'primaryCategory', 'categories', 'audiences']);
             return (new ProductResource($product))->response();
         } catch (Throwable $e) {
             report($e);

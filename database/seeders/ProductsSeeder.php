@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Services\ProductService;
 use App\Models\Category;
 use App\Models\Audience;
+use App\Models\Brand;
 
 class ProductsSeeder extends Seeder
 {
@@ -23,10 +24,13 @@ class ProductsSeeder extends Seeder
         $audWomen = Audience::where('slug', 'women')->value('id');
         $audKids  = Audience::where('slug', 'kids')->value('id');
 
+        $veloraBrandId = Brand::where('slug', 'velora')->value('id') ?? Brand::query()->value('id'); // fallback any brand
+
         $this->service->create([
             'name' => 'Essential Tee',
             'price_cents' => 1999,
             'currency' => 'EUR',
+            'brand_id' => $veloraBrandId,
             'primary_category_id' => $menTopsId,
             'audience_ids' => [$audMen],
             'description' => '100% cotton tee.',
@@ -38,6 +42,7 @@ class ProductsSeeder extends Seeder
             'name' => 'Everyday Tee',
             'price_cents' => 1899,
             'currency' => 'EUR',
+            'brand_id' => $veloraBrandId,
             'primary_category_id' => $womenTopsId,
             'audience_ids' => [$audWomen],
             'description' => 'Soft everyday tee.',
@@ -49,6 +54,7 @@ class ProductsSeeder extends Seeder
             'name' => 'Kids Graphic Tee',
             'price_cents' => 1499,
             'currency' => 'EUR',
+            'brand_id' => $veloraBrandId,
             'primary_category_id' => $kidsTopsId,
             'audience_ids' => [$audKids],
             'description' => 'Fun graphic tee for kids.',

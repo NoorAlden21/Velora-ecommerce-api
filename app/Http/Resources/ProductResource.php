@@ -27,6 +27,12 @@ class ProductResource extends JsonResource
                 'currency' => $this->currency,
             ],
 
+            'brand' => $this->whenLoaded('brand', fn () => [
+                'id'   => $this->brand->id,
+                'slug' => $this->brand->slug,
+                'name' => $this->brand->name,
+            ]),
+
             'primary_category' => $this->whenLoaded('primaryCategory', fn () => new CategoryResource($this->primaryCategory)),
             'categories'       => CategoryResource::collection($this->whenLoaded('categories')),
             'audiences'        => AudienceResource::collection($this->whenLoaded('audiences')),

@@ -91,6 +91,32 @@ class CategoryService
         });
     }
 
+
+    public function childrenOf(Category $category)
+    {
+        return $category->children()->orderBy('position')->orderBy('name')->get();
+    }
+
+    public function descendantsIds(Category $category, bool $includeSelf = true)
+    {
+        $q = Category::query()->where('path', 'like', $category->path . '%');
+        if (!$includeSelf) {
+            $q->where('id', '<>', $category->id);
+        }
+        return $q->pluck('id');
+    }
+
+    public function productsParamsFor(Category $category, string $scope = 'primary', bool $includeDescendants = true): array
+    {
+        $ids = $includeDescendants
+            ? $this->descendantsIds($category, true)->all()
+            : [$category->id];
+
+        return $scope === 'any'
+            ? ['category_ids_any'     => $ids]
+            : ['primary_category_ids' => $ids];
+    }
+
     private function computePathAndDepth(string $slug, ?int $parentId): array
     {
         if ($parentId) {

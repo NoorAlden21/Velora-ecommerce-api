@@ -23,6 +23,8 @@ return new class extends Migration
             $table->unsignedBigInteger('price_cents');
             $table->string('currency', 3)->default('USD');
 
+            $table->foreignId('brand_id')->nullable()->constrained('brands')->cascadeOnUpdate()->nullOnDelete();
+
             $table->foreignId('primary_category_id')
                 ->nullable()
                 ->constrained('categories')
