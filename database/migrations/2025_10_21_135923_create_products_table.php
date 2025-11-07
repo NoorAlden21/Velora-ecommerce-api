@@ -21,7 +21,7 @@ return new class extends Migration
             $table->timestamp('published_at')->nullable();
 
             $table->unsignedBigInteger('price_cents');
-            $table->string('currency', 3)->default('USD');
+            $table->string('currency', 3)->default('EUR');
 
             $table->foreignId('brand_id')->nullable()->constrained('brands')->cascadeOnUpdate()->nullOnDelete();
 

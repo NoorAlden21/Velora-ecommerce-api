@@ -102,7 +102,7 @@ Route::prefix('categories')->group(function () {
 | Admin (Sanctum + Role:admin)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
 
     // Categories CRUD (admin)
     Route::get('/categories',           [CategoryController::class, 'index']);

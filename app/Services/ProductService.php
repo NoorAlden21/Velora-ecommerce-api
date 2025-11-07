@@ -157,6 +157,7 @@ class ProductService
             }
 
             $productData = Arr::only($data, self::PRODUCT_COLUMNS);
+            $productData['currency'] = "EUR";
             $product = Product::create($productData);
 
             if (!empty($productData['primary_category_id'])) {

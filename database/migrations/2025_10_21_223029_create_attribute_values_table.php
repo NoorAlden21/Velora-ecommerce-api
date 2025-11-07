@@ -19,8 +19,8 @@ return new class extends Migration
                 ->cascadeOnUpdate()
                 ->cascadeOnDelete();
 
-            $table->string('value');  // "Nike", "Cotton", "Long", "Slim Fit", "100", "true" ...
-            $table->string('slug');   // nike, cotton, long, slim-fit, 100, true
+            $table->string('value');  // "Cotton", "Long", "Slim Fit", "100", "true" ...
+            $table->string('slug');   // cotton, long, slim-fit, 100, true
             $table->unsignedInteger('position')->default(0);
             $table->timestamps();
 
