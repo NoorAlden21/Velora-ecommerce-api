@@ -10,6 +10,7 @@ use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class ProductController extends Controller
@@ -33,10 +34,25 @@ class ProductController extends Controller
     public function store(ProductStoreRequest $request): JsonResponse
     {
         try {
-            $product = $this->productService->create($request->validated());
+            $product =  $this->productService->create($request->validated(), $request->allFiles());
             return (new ProductResource($product))->response()->setStatusCode(201);
         } catch (Throwable $e) {
             report($e);
+
+            Log::error('Products@store: exception', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+                'trace_top' => collect($e->getTrace())->take(3)->all(),
+            ]);
+
+            if (config('app.debug')) {
+                return response()->json([
+                    'message' => 'Failed to create product',
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile() . ':' . $e->getLine(),
+                ], 500);
+            }
+
             return response()->json(['message' => 'Failed to create product'], 500);
         }
     }

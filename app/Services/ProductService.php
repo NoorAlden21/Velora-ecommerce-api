@@ -4,12 +4,17 @@ namespace App\Services;
 
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Option;
+use App\Models\OptionValue;
 use App\Models\Product;
+use App\Models\ProductOptionValueImage;
+use App\Models\ProductVariantValue;
 use App\Models\Redirect;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Storage;
 
 class ProductService
 {
@@ -32,8 +37,7 @@ class ProductService
     {
         /** @var Builder $q */
         $q = Product::query()
-            ->with(['brand', 'primaryCategory', 'categories', 'audiences'])
-            ->where('is_active', true);
+            ->with(['brand', 'primaryCategory', 'categories', 'audiences']);
 
         // Text search
         if (!empty($params['q'])) {
@@ -156,10 +160,22 @@ class ProductService
                 $data['slug'] = $this->ensureUnique(Str::slug($data['slug']));
             }
 
+            if (!empty($data['status'])) {
+                if ($data['status'] === 'active') {
+                    $data['is_active'] = true;
+                    $data['published_at'] = $data['published_at'] ?? now();
+                } else {
+                    $data['is_active'] = false;
+                    $data['published_at'] = null;
+                }
+            }
+
             $productData = Arr::only($data, self::PRODUCT_COLUMNS);
-            $productData['currency'] = "EUR";
+            $productData['currency'] = $productData['currency'] ?? "EUR";
+
             $product = Product::create($productData);
 
+            //categories and audiences
             if (!empty($productData['primary_category_id'])) {
                 $product->categories()->syncWithoutDetaching([$productData['primary_category_id']]);
             }
@@ -170,7 +186,198 @@ class ProductService
                 $product->audiences()->sync($audienceIds);
             }
 
-            return $product->load(['brand', 'primaryCategory', 'categories', 'audiences']);
+            //options
+            $optionIds = collect($data['options'] ?? [])
+                ->pluck('option_id')->unique()->values()->all();
+            if (!empty($optionIds)) {
+                $product->options()->sync($optionIds); // product_options
+            }
+
+            //variants
+            $variantsPayload = $data['variants'] ?? [];
+            if (!empty($variantsPayload)) {
+
+                // preload options (id, slug, position) & option values (id, option_id, slug)
+                $options = Option::query()
+                    ->whereIn('id', $optionIds ?: collect($variantsPayload)
+                        ->flatMap(fn ($v) => collect($v['option_values'] ?? [])->pluck('option_id'))
+                        ->unique()->values()->all())
+                    ->select(['id', 'slug', 'position'])
+                    ->get()
+                    ->keyBy('id');
+
+                $valueIds = collect($variantsPayload)
+                    ->flatMap(fn ($v) => collect($v['option_values'] ?? [])->pluck('option_value_id'))
+                    ->unique()->values()->all();
+
+                $values = OptionValue::query()
+                    ->whereIn('id', $valueIds)
+                    ->select(['id', 'option_id', 'slug'])
+                    ->get()
+                    ->keyBy('id');
+
+                // detect duplicates in payload AFTER building canonical keys
+                $seenKeys = [];
+                $pairsUnion = []; // for product_option_values sync later
+
+                foreach ($variantsPayload as $variantRow) {
+                    $pairs = collect($variantRow['option_values'] ?? [])->map(function ($p) use ($options, $values) {
+                        $optId = (int) $p['option_id'];
+                        $valId = (int) $p['option_value_id'];
+
+                        if (!$options->has($optId)) {
+                            throw new \RuntimeException("Option $optId not provided/active for this product.");
+                        }
+                        if (!$values->has($valId)) {
+                            throw new \RuntimeException("Option value $valId not found.");
+                        }
+
+                        //value must belong to the same option
+                        if ((int)$values[$valId]->option_id !== $optId) {
+                            throw new \RuntimeException("Value $valId does not belong to option $optId.");
+                        }
+
+                        return [
+                            'option_id' => $optId,
+                            'option_slug' => (string)$options[$optId]->slug,
+                            'option_position' => (int)$options[$optId]->position,
+                            'option_value_id' => $valId,
+                            'value_slug' => (string)$values[$valId]->slug,
+                        ];
+                    })->values();
+
+                    //sort by option.position then option.slug for a canonical order
+                    $sorted = $pairs->sortBy([
+                        ['option_position', 'asc'],
+                        ['option_slug', 'asc'],
+                    ])->values();
+
+                    $slugPairs = [];
+                    foreach ($sorted as $item) {
+                        $slugPairs[$item['option_slug']] = $item['value_slug'];
+                    }
+                    $variantKey = \App\Services\VariantKeyBuilder::makeFromSlugs($slugPairs);
+
+                    if (isset($seenKeys[$variantKey])) {
+                        throw new \RuntimeException("Duplicate variant combination: {$variantKey}");
+                    }
+                    $seenKeys[$variantKey] = true;
+
+                    $variantRow['price_cents'] = isset($variantRow['price_cents']) && $variantRow['price_cents'] !== ''
+                        ? (int) $variantRow['price_cents']
+                        : null;
+
+                    $variantRow['currency'] = isset($variantRow['currency']) && $variantRow['currency'] !== ''
+                        ? (string) $variantRow['currency']
+                        : null;
+
+                    // both needed together
+                    $hasPrice = !is_null($variantRow['price_cents']);
+                    $hasCurr  = !is_null($variantRow['currency']);
+
+                    if ($hasPrice xor $hasCurr) {
+                        throw new \RuntimeException(
+                            "Variant price override requires BOTH price_cents and currency, or NEITHER."
+                        );
+                    }
+
+                    // create product_variant
+                    /** @var ProductVariant $pv */
+                    $pv = $product->variants()->create([
+                        'variant_key' => $variantKey,
+                        'sku' => $variantRow['sku'] ?? null,
+                        'price_cents' => $variantRow['price_cents'] ?? null,
+                        'currency' => $variantRow['currency'] ?? null,
+                        'stock' => (int)($variantRow['stock'] ?? 0),
+                        'is_active' => (bool)($variantRow['is_active'] ?? true),
+                    ]);
+
+                    // create product_variant_values
+                    $pvValues = $sorted->map(fn ($item) => [
+                        'product_variant_id' => $pv->id,
+                        'option_id' => $item['option_id'],
+                        'option_value_id' => $item['option_value_id'],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ])->all();
+
+                    // bulk insert
+                    ProductVariantValue::query()->insert($pvValues);
+
+                    // accumulate union for product_option_values
+                    foreach ($sorted as $item) {
+                        $pairsUnion[$item['option_value_id']] = [
+                            'option_id' => $item['option_id'],
+                        ];
+                    }
+                }
+
+                // sync product_option_values
+                if (!empty($pairsUnion)) {
+                    $product->selectedOptionValues()->sync($pairsUnion);
+                }
+            }
+
+            $attributesPayload = $data['attributes'] ?? [];
+            if (!empty($attributesPayload)) {
+                $attach = [];
+                foreach ($attributesPayload as $row) {
+                    $attach[(int)$row['attribute_value_id']] = ['attribute_id' => (int)$row['attribute_id']];
+                }
+                $product->attributeValues()->sync($attach);
+            }
+
+            // Accept either URL or file (multipart) for each row
+            $colorImages = $data['color_images'] ?? [];
+            if (!empty($colorImages)) {
+                foreach ($colorImages as $idx => $ci) {
+                    $optionValueId = (int) $ci['option_value_id'];
+                    $position = isset($ci['position']) ? (int)$ci['position'] : 0;
+
+                    // ensure this option_value_id is allowed
+                    $exists = DB::table('product_option_values')
+                        ->where('product_id', $product->id)
+                        ->where('option_value_id', $optionValueId)
+                        ->exists();
+
+                    if (!$exists) {
+                        throw new \RuntimeException("Color image value {$optionValueId} is not allowed for this product.");
+                    }
+
+                    $imageUrl = $ci['url'] ?? null;
+
+                    $uploadedFile = $files['color_images'][$idx]['file'] ?? null;
+                    if ($uploadedFile) {
+                        $path = $uploadedFile->store('product-color-images', 'public');
+                        $imageUrl = Storage::disk('public')->url($path);
+                    }
+
+                    if (!$imageUrl) {
+                        // if neither url nor file provided, skip this entry
+                        continue;
+                    }
+
+                    ProductOptionValueImage::create([
+                        'product_id' => $product->id,
+                        'option_value_id' => $optionValueId,
+                        'image_url' => $imageUrl,
+                        'position' => $position,
+                    ]);
+                }
+            }
+
+            return $product->load([
+                'brand',
+                'primaryCategory',
+                'categories',
+                'audiences',
+                'options',
+                'selectedOptionValues',
+                'variants.values.option',
+                'variants.values.optionValue',
+                'attributeValues',
+                'colorImages',
+            ]);
         });
     }
 

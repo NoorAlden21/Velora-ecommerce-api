@@ -17,7 +17,7 @@ use App\Http\Controllers\Api\Admin\ProductOptionsController;
 use App\Http\Controllers\Api\Admin\ProductVariantsController;
 use App\Http\Controllers\Api\Admin\ProductColorImagesController;
 use App\Http\Controllers\Api\Admin\ProductAttributesController;
-
+use App\Http\Controllers\Api\Admin\ProductFormMetaController;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Redirect;
@@ -111,6 +111,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::delete('/categories/{category:id}', [CategoryController::class, 'destroy']);
 
     // Products CRUD (admin)
+    Route::get('/products/form-meta', [ProductFormMetaController::class, 'index']);
     Route::post('/products',           [ProductController::class, 'store']);
     Route::put('/products/{product:id}', [ProductController::class, 'update']);
     Route::delete('/products/{product:id}', [ProductController::class, 'destroy']);

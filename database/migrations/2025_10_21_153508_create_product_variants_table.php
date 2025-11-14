@@ -19,8 +19,8 @@ return new class extends Migration
                 ->cascadeOnUpdate()
                 ->cascadeOnDelete();
 
-            $table->string('variant_key');           // color:black|size:42
-            $table->string('sku')->nullable()->unique();
+            $table->string('variant_key')->nullable();           // color:black|size:42
+            $table->string('sku')->nullable();
 
             // Overrides
             $table->unsignedBigInteger('price_cents')->nullable();
